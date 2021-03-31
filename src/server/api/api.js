@@ -1,8 +1,7 @@
 const express = require('express');
 const router = express.Router();
+const getFolderItemsHandler = require('./routes/getDirectoryItemsHandler');
 
-router.get('/test', async (req, res) => {
-    res.status(200).json({test: 'test'});
-});
+router.post('/getDirectoryItems', getFolderItemsHandler);
 
 module.exports = router;

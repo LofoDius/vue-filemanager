@@ -37,7 +37,7 @@
     height: calc(30px + 2vh);
     width: calc(18px + 3vw);
 
-    margin: 0 0 0 15px;
+    margin: 0;
     padding-right: 10px;
 
     cursor: pointer;
