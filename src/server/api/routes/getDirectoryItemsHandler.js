@@ -8,7 +8,8 @@ async function getDirectoryItemsHandler(req, res) {
         res.sendStatus(HTTP_STATUS.BAD_REQUEST);
     }
 
-    let body = []
+    path = '.' + path;
+    let body = [];
 
     if (fs.existsSync(path)) {
         try {
