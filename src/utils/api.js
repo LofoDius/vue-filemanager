@@ -10,7 +10,7 @@ export default {
             .then((res) => Promise.resolve(res.data));
     },
 
-    RENAME_FILE: ({path, oldName, newName}) => {
+    RENAME_FILE: ({path, newName, oldName}) => {
         return client.post('renameFile', {path, newName, oldName})
             .then((res) => Promise.resolve(res.data));
     }
