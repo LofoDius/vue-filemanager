@@ -1,7 +1,13 @@
 <template>
   <div class="fm-breadcrumbs">
-    <div class="fm-breadcrumbs__home-button"></div>
-    <div class="fm-breadcrumbs__path-elem" v-for="folder in path" :key="folder">{{ folder }}</div>
+    <div class="fm-breadcrumbs__home-button" @click="this.moveToHome"></div>
+    <div class="fm-breadcrumbs__path-elem"
+         v-for="folder in path"
+         :key="folder"
+         @click="this.moveToCrumb(folder)"
+    >
+      {{ folder }}
+    </div>
   </div>
 </template>
 
@@ -21,6 +27,8 @@
       },
     },
 
+    mounted() {
+    }
   }
 </script>
 
@@ -52,7 +60,7 @@
   }
 
   .fm-breadcrumbs__home-button:hover {
-    background: yellow url("../assets/home.svg") no-repeat 35% 50%;
+    background: #315771 url("../assets/home.svg") no-repeat 35% 50%;
   }
 
   .fm-breadcrumbs__path-elem {
@@ -66,7 +74,7 @@
     padding: 0 25px 0 30px;
 
     color: #E0EEF5;
-    font-size: calc(5px + 2vh);
+    font-size: calc(15px + 1vh);
     background-color: #33658A;
 
     cursor: pointer;
