@@ -69,8 +69,20 @@
         <h1>Файл с именем {{ file.split('/').pop() }} уже существует!</h1>
         <h2>Заменить существующий файл?</h2>
         <div class="fm-files__modal__buttons">
-          <button @click="chooseReplacing(file, false)">Нет</button>
-          <button @click="chooseReplacing(file, true)">
+          <button @click="replacingModalHandler(file, false)">Нет</button>
+          <button @click="replacingModalHandler(file, true)">
+            Да
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div class="fm-files__modal" v-if="showDeleteModal">
+      <div class="fm-files__modal__container">
+        <h1>Вы действительно хотите удалить {{ deleteMessage }}?</h1>
+        <div class="fm-files__modal__buttons">
+          <button @click="deletingModalHandler(false)">Нет</button>
+          <button @click="deletingModalHandler(true)">
             Да
           </button>
         </div>
@@ -103,6 +115,8 @@ export default {
       showCreateModal: false,
       showReplaceModal: false,
       filesToReplace: [],
+      showDeleteModal: false,
+      deleteMessage: '',
     }
   },
 
@@ -171,7 +185,14 @@ export default {
           break;
         }
         case 'Удалить': {
+          if (this.selectedFiles.length === 1) {
+            this.deleteMessage = this.selectedFiles[0].split('/').pop();
+          } else {
+            this.deleteMessage = this.selectedFiles.length + ' файла(ов)';
+          }
 
+          this.$store.commit('SET_FILES_TO_DELETE', this.selectedFiles);
+          this.showDeleteModal = true;
           break;
         }
         case 'Создать папку': {
@@ -219,17 +240,26 @@ export default {
       this.filesToShow = this.$store.getters.GET_FILES_TO_SHOW;
     },
 
-    chooseReplacing(filePath, choice) {
+    replacingModalHandler(filePath, choice) {
       this.filesToReplace = this.filesToReplace.filter(f => f !== filePath);
       if (choice) {
         this.$store.commit('ADD_FILE_TO_PASTE', filePath);
         if (this.filesToReplace.length === 0) {
-          this.$store.dispatch('PASTE').then(() => {
-            this.$store.commit('SET_FILES_TO_PASTE', []);
-          });
+          this.$store.dispatch('PASTE')
         }
       }
-    }
+    },
+
+    deletingModalHandler(choice) {
+      this.showDeleteModal = false;
+      if (choice) {
+        this.$store.dispatch('DELETE').then(() => {
+          this.filesToShow = this.$store.getters.GET_FILES_TO_SHOW;
+        });
+      } else {
+        this.$store.commit('SET_FILES_TO_DELETE', []);
+      }
+    },
   },
 
   watch: {

@@ -31,8 +31,19 @@ export default {
         try {
             await api.PASTE(context.getters.GET_FILES_TO_PASTE, context.getters.GET_BREADCRUMBS.join('/'));
             await context.dispatch('LOAD_FILES_TO_SHOW');
+            context.commit('SET_FILES_TO_PASTE', []);
         } catch (e) {
             console.log(e);
         }
-    }
+    },
+
+    DELETE: async (context) => {
+      try {
+          await api.DELETE(context.getters.GET_FILES_TO_DELETE);
+          await context.dispatch('LOAD_FILES_TO_SHOW');
+          context.commit('SET_FILES_TO_DELETE', []);
+      }  catch (e) {
+          console.log(e);
+      }
+    },
 }

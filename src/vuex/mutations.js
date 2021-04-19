@@ -39,4 +39,5 @@ export default {
 
     SET_FILES_TO_PASTE: (state, filesToPaste) => Vue.set(state, 'filesToPaste', filesToPaste),
 
+    SET_FILES_TO_DELETE: (state, filesToDelete) => Vue.set(state, 'filesToDelete', filesToDelete),
 }

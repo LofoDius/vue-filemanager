@@ -21,5 +21,9 @@ export default {
 
     PASTE: (filesToPaste, pathToPaste) => {
         return client.post('paste', {filesToPaste, pathToPaste}).then((res) => Promise.resolve(res.data))
+    },
+
+    DELETE: (filesToDelete) => {
+        return client.post('delete', {filesToDelete}).then((res) => Promise.resolve(res.data));
     }
 }

@@ -16,6 +16,7 @@ const store = new Vuex.Store({
     filesToShow: [],
     fileToPreview: null,
     filesToPaste: [],
+    filesToDelete: [],
     selectedFiles: [],
     actionType: [],
     showLoading: false,
