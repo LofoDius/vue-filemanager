@@ -2,6 +2,14 @@
   <div class="fm-files__frame">
     <div class="fm-files__buttons">
       <fm-button
+          key="Вставить"
+          label="Вставить"
+          class="fm-files__buttons-button"
+          @onButtonClick="buttonClickHandler"
+          v-if="$store.getters.GET_SELECTED_FILES.length !== 0"
+      />
+
+      <fm-button
           v-for="button in buttons"
           :key="button"
           :label="button"
@@ -10,6 +18,13 @@
       />
     </div>
     <div class="fm-files__container">
+      <loading
+          :active.sync="$store.getters.GET_SHOW_LOADING"
+          :can-cancel="false"
+          :is-full-page="false"
+          color="#33658A"
+          background-color="#E0EEF5"
+      />
       <drag-select class="fm-files__main" attribute="attribute" @change="selectedFiles = $event">
         <fm-file
             v-for="file in filesToShow"
@@ -18,7 +33,7 @@
             :filename="file.name"
             :attribute="file.path"
             :class="{'fm-files__selected-file': selectedFiles.includes(file.path)}"
-            @dblclick="openFolder(file.name, file.type)"
+            @doubleClick="openFolder(file.name, file.type)"
         />
       </drag-select>
       <div class="fm-files__preview">
@@ -26,13 +41,38 @@
       </div>
     </div>
 
-    <div class="fm-files__modal-rename" v-if="showRenameModal">
-      <div class="fm-files__modal-rename__container">
+    <div class="fm-files__modal" v-if="showRenameModal">
+      <div class="fm-files__modal__container">
         <h1>Переименовать файл</h1>
         <input type="text" v-model="newFileName" @focus="$event.target.select()">
-        <div class="fm-files__modal-rename__buttons">
+        <div class="fm-files__modal__buttons">
           <button @click="showRenameModal = false">Отмена</button>
           <button @click="renameFile">OK</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="fm-files__modal" v-if="showCreateModal">
+      <div class="fm-files__modal__container">
+        <h1>Введите имя папки</h1>
+        <input type="text" v-model="directoryName" @focus="$event.target.select()">
+        <div class="fm-files__modal__buttons">
+          <button @click="showCreateModal = false">Отмена</button>
+          <button @click="createDirectory">OK</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="fm-files__modal" v-show="filesToReplace[filesToReplace.length -1] === file"
+         v-for="file in filesToReplace" :key="file">
+      <div class="fm-files__modal__container">
+        <h1>Файл с именем {{ file.split('/').pop() }} уже существует!</h1>
+        <h2>Заменить существующий файл?</h2>
+        <div class="fm-files__modal__buttons">
+          <button @click="chooseReplacing(file, false)">Нет</button>
+          <button @click="chooseReplacing(file, true)">
+            Да
+          </button>
         </div>
       </div>
     </div>
@@ -45,18 +85,24 @@ import FmButton from "@/components/fm-button";
 import FmFile from "@/components/fm-file";
 import DragSelect from 'drag-select-vue';
 import FmBreadcrumbsMixin from '@/mixin/fm-breadcrumbs-mixin'
+import Loading from 'vue-loading-overlay';
+import 'vue-loading-overlay/dist/vue-loading.css'
 
 export default {
   name: "fm-files",
-  components: {FmFile, FmButton, DragSelect},
+  components: {FmFile, FmButton, DragSelect, Loading},
   data() {
     return {
-      buttons: ['Копировать', 'Вырезать', 'Переименовать', 'Удалить'],
+      buttons: ['Копировать', 'Переименовать', 'Создать папку', 'Удалить'],
       selectedFiles: [],
       filesToShow: [],
       showRenameModal: false,
       oldFileName: '',
       newFileName: '',
+      directoryName: '',
+      showCreateModal: false,
+      showReplaceModal: false,
+      filesToReplace: [],
     }
   },
 
@@ -64,16 +110,40 @@ export default {
     this.$store.commit('INIT_STORE');
     this.$store.dispatch('LOAD_FILES_TO_SHOW').then(() => {
       this.filesToShow = this.$store.getters.GET_FILES_TO_SHOW;
-      console.log(this.filesToShow);
     })
+  },
+
+  created() {
+    setInterval(() => {
+      this.filesToShow = this.$store.getters.GET_FILES_TO_SHOW;
+    }, 1000);
   },
 
   methods: {
     buttonClickHandler(button) {
-      if (this.selectedFiles.length === 0)
+      if (this.selectedFiles.length === 0 && button !== 'Создать папку' && button !== 'Вставить')
         return;
 
       switch (button) {
+        case 'Вставить': {
+          let isCopyExists = false;
+          let filesToCheck = this.$store.getters.GET_SELECTED_FILES;
+          for (let i in filesToCheck) {
+            if (this.filesToShow.filter(f => f.path === filesToCheck[i]).length !== 0) {
+              this.filesToReplace.push(filesToCheck[i]);
+              isCopyExists = true;
+            }
+            this.$store.commit('ADD_FILE_TO_PASTE', filesToCheck[i]);
+          }
+
+          if (!isCopyExists) {
+            this.$store.commit('SET_FILES_TO_PASTE', filesToCheck);
+            this.$store.dispatch('PASTE').then(() => {
+              this.filesToShow = this.$store.getters.GET_FILES_TO_SHOW
+            });
+          }
+          break;
+        }
         case 'Копировать':
         case 'Вырезать': {
           this.$store.commit('SET_SELECTED_FILES', this.selectedFiles);
@@ -83,15 +153,19 @@ export default {
         }
         case 'Переименовать': {
           if (this.selectedFiles.length !== 1) {
-            console.log('here');
             this.$notify({group: 'notify', text: 'Выберите только один файл для переименования'});
             return;
           } else {
             let file = this.filesToShow.find(file => file.path === this.selectedFiles[0]);
-            console.log(file);
-            let lastDotIndex = file.name.lastIndexOf('.');
-            this.oldFileName = file.name.substring(0, lastDotIndex);
-            this.newFileName = file.name.substring(0, lastDotIndex);
+
+            if (file.type === 'directory') {
+              this.oldFileName = file.name;
+              this.newFileName = file.name;
+            } else {
+              let lastDotIndex = file.name.lastIndexOf('.');
+              this.oldFileName = file.name.substring(0, lastDotIndex);
+              this.newFileName = file.name.substring(0, lastDotIndex);
+            }
             this.showRenameModal = true;
           }
           break;
@@ -100,10 +174,24 @@ export default {
 
           break;
         }
+        case 'Создать папку': {
+          this.directoryName = '';
+          this.showCreateModal = true;
+          break;
+        }
         default: {
           break;
         }
       }
+    },
+
+    createDirectory() {
+      this.showCreateModal = false;
+      if (this.filesToShow.filter(file => file.name === this.directoryName).length !== 0) {
+        this.$notify({group: 'notify', text: 'Такое имя уже используется!'});
+        return;
+      }
+      this.$store.dispatch('CREATE_DIRECTORY', this.directoryName);
     },
 
     renameFile() {
@@ -123,17 +211,36 @@ export default {
     },
 
     openFolder(fileName, fileType) {
-      console.log(fileName);
       if (fileType !== 'directory') {
         return;
       }
+
       this.addBreadcrumb(fileName);
+      this.filesToShow = this.$store.getters.GET_FILES_TO_SHOW;
     },
+
+    chooseReplacing(filePath, choice) {
+      this.filesToReplace = this.filesToReplace.filter(f => f !== filePath);
+      if (choice) {
+        this.$store.commit('ADD_FILE_TO_PASTE', filePath);
+        if (this.filesToReplace.length === 0) {
+          this.$store.dispatch('PASTE').then(() => {
+            this.$store.commit('SET_FILES_TO_PASTE', []);
+          });
+        }
+      }
+    }
   },
 
-  mixins: {
+  watch: {
+    filesToShow() {
+      this.$store.commit("SHOW_LOADING", false);
+    }
+  },
+
+  mixins: [
     FmBreadcrumbsMixin,
-  }
+  ]
 }
 </script>
 
@@ -197,7 +304,7 @@ export default {
   background: rgba(255, 255, 255, 0.5);
 }
 
-.fm-files__modal-rename {
+.fm-files__modal {
   position: absolute;
   left: 0;
   top: 0;
@@ -212,7 +319,7 @@ export default {
   background: rgba(0, 0, 0, 0.5);
 }
 
-.fm-files__modal-rename__container {
+.fm-files__modal__container {
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -222,13 +329,13 @@ export default {
   background: #E0EEF5;
 }
 
-.fm-files__modal-rename__container h1 {
+.fm-files__modal__container h1 {
   font-size: 24px;
   margin: 0 14px 24px;
   padding: 0;
 }
 
-.fm-files__modal-rename__container input {
+.fm-files__modal__container input {
   width: 85%;
 
   border: 1px #2F4858 solid;
@@ -239,18 +346,18 @@ export default {
   padding: 2px 4px;
 }
 
-.fm-files__modal-rename__container input:focus {
+.fm-files__modal__container input:focus {
   outline: none;
 }
 
-.fm-files__modal-rename__buttons {
+.fm-files__modal__buttons {
   display: flex;
   justify-content: space-between;
   width: calc(85% + 10px);
   margin-top: 16px;
 }
 
-.fm-files__modal-rename__buttons button {
+.fm-files__modal__buttons button {
   font-size: 16px;
   background: #33658A;
   color: #E0EEF5;
@@ -259,16 +366,18 @@ export default {
   margin: 0;
 }
 
-.fm-files__modal-rename__buttons button:last-child {
+.fm-files__modal__buttons button:last-child {
   padding: 8px 30px;
 }
 
-.fm-files__modal-rename__buttons button:active {
+.fm-files__modal__buttons button:active {
   transition: all 50ms;
   background: #86BBD8;;
 }
 
-.fm-files__modal-rename__buttons button:focus {
+.fm-files__modal__buttons button:focus {
   outline: none;
 }
+
+
 </style>

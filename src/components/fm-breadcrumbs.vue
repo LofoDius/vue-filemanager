@@ -4,7 +4,7 @@
     <div class="fm-breadcrumbs__path-elem"
          v-for="folder in path"
          :key="folder"
-         @click="this.moveToCrumb(folder)"
+         @click="moveToCrumb(folder)"
     >
       {{ folder }}
     </div>
@@ -23,11 +23,15 @@
 
     computed: {
       path() {
-        return this.breadcrumbs;
+        return this.$store.getters.GET_BREADCRUMBS
       },
     },
 
-    mounted() {
+    watch: {
+      '$store.state.breadcrumbs': function () {
+        this.$store.commit('SHOW_LOADING', true);
+        this.$store.dispatch('LOAD_FILES_TO_SHOW');
+      }
     }
   }
 </script>

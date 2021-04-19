@@ -23,18 +23,18 @@ async function getDirectoryItemsHandler(req, res) {
         res.sendStatus(HTTP_STATUS.BAD_REQUEST);
         return;
     }
-    path = '/home/lofod/Documents/filemanager' + path;
+    path = '/home/lofod/Documents/filemanager/' + path;
     let body = []
 
     if (fs.existsSync(path)) {
         try {
             let dirItems = fs.readdirSync(path);
             dirItems.forEach((item) => {
-                let filePath = path + '/' + item;
+                let filePath = path[path.length - 1] === '/' ? path + item : path + '/' + item;
                 let name = item;
                 let itemStats = fs.statSync(filePath);
                 let type = 'unknown';
-                if(knownFileTypes.includes(fpath.extname(filePath).substring(1).toUpperCase()))
+                if (knownFileTypes.includes(fpath.extname(filePath).substring(1).toUpperCase()))
                     type = fpath.extname(filePath).substring(1).toUpperCase();
 
                 if (itemStats.isDirectory()) {

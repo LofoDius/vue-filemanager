@@ -4,6 +4,7 @@
         @mouseover="focus = true"
         @mouseout="focus = false"
         :class="{'button-focus': focus}"
+        @dblclick="$emit('doubleClick')"
     >
       <img :src="iconSrc" alt="icon"/>
       <span>{{ filename }}</span>

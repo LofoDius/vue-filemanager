@@ -1,48 +1,23 @@
 export default {
-    data() {
-        return {
-            breadcrumbs: [],
-        }
-    },
-
     methods: {
         setBreadcrumbs(crumbs) {
-            this.breadcrumbs = [...crumbs];
-
-            this.$store.commit('SET_BREADCRUMBS', this.breadcrumbs);
-            this.$store.dispatch('LOAD_FILES_TO_SHOW');
+            this.$store.commit('SET_BREADCRUMBS', crumbs);
         },
 
         moveUpBreadcrumbs() {
-            this.breadcrumbs = this.breadcrumbs.slice(0, this.breadcrumbs.length - 1);
-
-            this.$store.commit('SET_BREADCRUMBS', this.breadcrumbs);
-            this.$store.dispatch('LOAD_FILES_TO_SHOW');
+            this.$store.commit('MOVE_UP_BREADCRUMBS');
         },
 
         addBreadcrumb(crumb) {
-            this.breadcrumbs.push(crumb);
-
-            this.$store.commit('SET_BREADCRUMBS', this.breadcrumbs);
-            this.$store.dispatch('LOAD_FILES_TO_SHOW');
+            this.$store.commit('ADD_BREADCRUMB', crumb);
         },
 
         moveToCrumb(crumb) {
-            if(!this.breadcrumbs.includes(crumb)) {
-                return;
-            }
-
-            this.breadcrumbs = this.breadcrumbs.slice(0, this.breadcrumbs.indexOf(crumb) + 1);
-
-            this.$store.commit('SET_BREADCRUMBS', this.breadcrumbs);
-            this.$store.dispatch('LOAD_FILES_TO_SHOW');
+            this.$store.commit('MOVE_TO_CRUMB', crumb)
         },
 
         moveToHome() {
-            this.breadcrumbs = [];
-
-            this.$store.commit('SET_BREADCRUMBS', this.breadcrumbs);
-            this.$store.dispatch('LOAD_FILES_TO_SHOW');
+            this.$store.commit('SET_BREADCRUMBS', []);
         }
     }
 }
