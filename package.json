@@ -11,6 +11,7 @@
     "axios": "^0.21.1",
     "body-parser": "^1.19.0",
     "core-js": "^3.6.5",
+    "dayjs": "^1.10.4",
     "drag-select-vue": "^1.8.0",
     "express": "^4.17.1",
     "fs-extra": "^9.1.0",

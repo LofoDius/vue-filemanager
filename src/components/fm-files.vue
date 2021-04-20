@@ -25,19 +25,32 @@
           color="#33658A"
           background-color="#E0EEF5"
       />
-      <drag-select class="fm-files__main" attribute="attribute" @change="selectedFiles = $event">
-        <fm-file
-            v-for="file in filesToShow"
-            :key="file.path"
-            :file-type="file.type"
-            :filename="file.name"
-            :attribute="file.path"
-            :class="{'fm-files__selected-file': selectedFiles.includes(file.path)}"
-            @doubleClick="openFolder(file.name, file.type)"
-        />
-      </drag-select>
+      <div class="fm-files__scroll">
+        <drag-select class="fm-files__main" attribute="attribute" @change="selectChange($event)">
+          <fm-file
+              v-for="file in sortedFilesToShow"
+              :key="file.path"
+              :file-type="file.type"
+              :filename="file.name"
+              :attribute="file.path"
+              :class="{'fm-files__selected-file': selectedFiles.includes(file.path)}"
+              @doubleClick="openFolder(file.name, file.type)"
+          />
+        </drag-select>
+      </div>
       <div class="fm-files__preview">
+        <div class="fm-files__preview-content" v-if="selectedFiles.length !== 0">
+          <img :src="previewImage" alt="Preview Image" width="50%"/>
+          <div class="fm-files__preview-title"> {{ previewTitle }}</div>
+          <div class="'fm-files__preview-last-modified" v-if="this.selectedFiles.length === 1">
+            {{ previewLastModified }}
+          </div>
+          <div class="fm-files__preview-size"> {{ previewSize }}</div>
+        </div>
 
+        <div class="fm-files__preview-stub" v-else>
+          Выберите что-нибудь для подробной информации
+        </div>
       </div>
     </div>
 
@@ -99,6 +112,7 @@ import DragSelect from 'drag-select-vue';
 import FmBreadcrumbsMixin from '@/mixin/fm-breadcrumbs-mixin'
 import Loading from 'vue-loading-overlay';
 import 'vue-loading-overlay/dist/vue-loading.css'
+import dayjs from 'dayjs';
 
 export default {
   name: "fm-files",
@@ -117,6 +131,9 @@ export default {
       filesToReplace: [],
       showDeleteModal: false,
       deleteMessage: '',
+      previewTitle: '',
+      previewSize: '',
+      previewLastModified: '',
     }
   },
 
@@ -133,7 +150,130 @@ export default {
     }, 1000);
   },
 
+  computed: {
+    previewImage() {
+      if (this.selectedFiles.length === 1) {
+        let file = this.filesToShow.filter(f => f.path === this.selectedFiles[0])
+
+        if (file.length === 0) return;
+        else file = file[0];
+
+        switch (file.type) {
+          case 'directory': {
+            return '/fileTypeIcons/directory.png';
+          }
+          case 'unknown': {
+            return '/fileTypeIcons/unknown.png'
+          }
+          default: {
+            return `/fileTypeIcons/${file.type}.png`
+          }
+        }
+      } else {
+        return '/fileTypeIcons/many.png'
+      }
+    },
+
+    sortedFilesToShow() {
+      return [...this.filesToShow].sort((a, b) => {
+        if (a.type === 'directory' && b.type !== 'directory') {
+          return -1;
+        } else if (b.type === 'directory' && a.type !== 'directory') {
+          return 1;
+        }
+
+        return 0;
+      });
+    }
+  },
+
   methods: {
+    selectChange(event) {
+      this.selectedFiles = event;
+      if (event.length === 0) {
+        return;
+      } else if (event.length === 1) {
+        let file = this.filesToShow.filter(f => f.path === event[0])[0]
+        this.previewTitle = file.name;
+        this.previewLastModified = dayjs(file.lastModified).format('DD.MM.YYYY, HH:mm');
+
+        if (file.type === 'directory') return;
+
+        let size = file.size.toFixed(2) / 8.00;
+        let divisionCounter = 0;
+        while (Math.trunc(size) > 1024 && divisionCounter !== 4) {
+          size = size / 1024.0;
+          divisionCounter++;
+        }
+        switch (divisionCounter) {
+          case 0: {
+            this.previewSize = size.toFixed(2) + ' Байт';
+            break;
+          }
+          case 1: {
+            this.previewSize = size.toFixed(2) + ' КБайт';
+            break;
+          }
+          case 2: {
+            this.previewSize = size.toFixed(2) + ' МБайт';
+            break;
+          }
+          case 3: {
+            this.previewSize = size.toFixed(2) + ' ГБайт';
+            break;
+          }
+          case 4: {
+            this.previewSize = size.toFixed(2) + ' ТБайт';
+            break;
+          }
+        }
+      } else {
+        this.previewTitle = 'Выбрано ' + event.length + ' элемента(ов)';
+        let isDirectorySelected = false;
+        let totalSize = 0.0;
+        for (let i in event) {
+          let file = this.filesToShow.filter(f => f.path === event[i])[0]
+          if (file.type === 'directory') {
+            isDirectorySelected = true;
+            break;
+          } else {
+            totalSize += file.size;
+          }
+        }
+
+        if (!isDirectorySelected) {
+          totalSize /= 8.0;
+          let divisionCounter = 0;
+          while (Math.trunc(totalSize) > 1024 && divisionCounter !== 4) {
+            totalSize = totalSize / 1024.0;
+            divisionCounter++;
+          }
+          switch (divisionCounter) {
+            case 0: {
+              this.previewSize = totalSize.toFixed(2) + ' Байт';
+              break;
+            }
+            case 1: {
+              this.previewSize = totalSize.toFixed(2) + ' КБайт';
+              break;
+            }
+            case 2: {
+              this.previewSize = totalSize.toFixed(2) + ' МБайт';
+              break;
+            }
+            case 3: {
+              this.previewSize = totalSize.toFixed(2) + ' ГБайт';
+              break;
+            }
+            case 4: {
+              this.previewSize = totalSize.toFixed(2) + ' ТБайт';
+              break;
+            }
+          }
+        } else this.previewSize = '';
+      }
+    },
+
     buttonClickHandler(button) {
       if (this.selectedFiles.length === 0 && button !== 'Создать папку' && button !== 'Вставить')
         return;
@@ -237,6 +377,7 @@ export default {
       }
 
       this.addBreadcrumb(fileName);
+      this.selectedFiles = [];
       this.filesToShow = this.$store.getters.GET_FILES_TO_SHOW;
     },
 
@@ -279,9 +420,9 @@ export default {
   position: relative;
   display: flex;
   flex-direction: column;
-  margin: 50px auto;
+  margin: 5vh auto;
   width: 90%;
-  height: 90%;
+  height: 60%;
 }
 
 .fm-files__container {
@@ -322,12 +463,16 @@ export default {
   background: #FF0800;
 }
 
+.fm-files__scroll {
+  overflow: auto;
+  width: 65%;
+}
+
 .fm-files__main {
   display: flex;
   flex-wrap: wrap;
   align-items: flex-start;
-
-  width: 65%;
+  width: 100%;
 }
 
 .fm-files__selected-file {
@@ -409,5 +554,15 @@ export default {
   outline: none;
 }
 
+.fm-files__preview-stub {
+  display: flex;
+  width: 70%;
+  height: 100%;
+  margin: auto auto;
+  justify-content: center;
+  align-items: center;
+  font-size: 20px;
+  color: #33658A;
+}
 
 </style>
