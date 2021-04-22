@@ -34,13 +34,19 @@
               :filename="file.name"
               :attribute="file.path"
               :class="{'fm-files__selected-file': selectedFiles.includes(file.path)}"
-              @doubleClick="openFolder(file.name, file.type)"
+              @doubleClick="openItem(file.name, file.type, file.path)"
           />
         </drag-select>
       </div>
       <div class="fm-files__preview">
         <div class="fm-files__preview-content" v-if="selectedFiles.length !== 0">
-          <img :src="previewImage" alt="Preview Image" width="50%"/>
+          <img
+              :src="previewImage"
+              alt="Preview Image"
+              width="50%"
+              :class="{'zoom-in': canZoomIn}"
+              @click="previewClick"
+          />
           <div class="fm-files__preview-title"> {{ previewTitle }}</div>
           <div class="'fm-files__preview-last-modified" v-if="this.selectedFiles.length === 1">
             {{ previewLastModified }}
@@ -102,6 +108,14 @@
       </div>
     </div>
 
+    <div class="fm-files__file" v-if="showFile" @click="showFile = false">
+      <img :src="fileContent" v-if="isImageShowing" alt="Picture" height="90%"/>
+      <div class="fm-files__file-container" v-else>
+        <h1>{{ fileName }}</h1>
+        <div class="fm-files__file-content">{{ fileContent }}</div>
+      </div>
+    </div>
+
   </div>
 </template>
 
@@ -120,20 +134,32 @@ export default {
   data() {
     return {
       buttons: ['Копировать', 'Переименовать', 'Создать папку', 'Удалить'],
+
       selectedFiles: [],
       filesToShow: [],
+
       showRenameModal: false,
       oldFileName: '',
       newFileName: '',
+
       directoryName: '',
       showCreateModal: false,
+
       showReplaceModal: false,
       filesToReplace: [],
+
       showDeleteModal: false,
       deleteMessage: '',
+
       previewTitle: '',
       previewSize: '',
       previewLastModified: '',
+      previewImageSource: '',
+      previewCanZoomIn: false,
+
+      showFile: false,
+      isImage: false,
+      fileName: '',
     }
   },
 
@@ -152,26 +178,11 @@ export default {
 
   computed: {
     previewImage() {
-      if (this.selectedFiles.length === 1) {
-        let file = this.filesToShow.filter(f => f.path === this.selectedFiles[0])
+      return this.previewImageSource;
+    },
 
-        if (file.length === 0) return;
-        else file = file[0];
-
-        switch (file.type) {
-          case 'directory': {
-            return '/fileTypeIcons/directory.png';
-          }
-          case 'unknown': {
-            return '/fileTypeIcons/unknown.png'
-          }
-          default: {
-            return `/fileTypeIcons/${file.type}.png`
-          }
-        }
-      } else {
-        return '/fileTypeIcons/many.png'
-      }
+    canZoomIn() {
+      return this.previewCanZoomIn;
     },
 
     sortedFilesToShow() {
@@ -184,18 +195,28 @@ export default {
 
         return 0;
       });
+    },
+
+    fileContent() {
+      return this.$store.getters.GET_FILE;
+    },
+
+    isImageShowing() {
+      return this.isImage;
     }
   },
 
   methods: {
     selectChange(event) {
       this.selectedFiles = event;
+      this.previewCanZoomIn = false;
       if (event.length === 0) {
         return;
       } else if (event.length === 1) {
         let file = this.filesToShow.filter(f => f.path === event[0])[0]
         this.previewTitle = file.name;
         this.previewLastModified = dayjs(file.lastModified).format('DD.MM.YYYY, HH:mm');
+        this.previewImageSource = this.getPreviewImage();
 
         if (file.type === 'directory') return;
 
@@ -226,6 +247,15 @@ export default {
             this.previewSize = size.toFixed(2) + ' ТБайт';
             break;
           }
+        }
+
+        const images = ['BMP', 'ICO', 'JPEG', 'JPG', 'PNG', 'WEBP'];
+        let fileExt = file.path.split('.').pop().toUpperCase();
+        if (images.includes(fileExt)) {
+          this.$store.dispatch('GET_FILE', file.path).then(() => {
+            this.previewImageSource = `data:image/${fileExt.toLowerCase()};base64,` + this.$store.getters.GET_FILE;
+            this.previewCanZoomIn = true;
+          })
         }
       } else {
         this.previewTitle = 'Выбрано ' + event.length + ' элемента(ов)';
@@ -371,14 +401,36 @@ export default {
       });
     },
 
-    openFolder(fileName, fileType) {
-      if (fileType !== 'directory') {
+    openItem(fileName, fileType, filePath) {
+      if (fileType === 'directory') {
+        this.addBreadcrumb(fileName);
+        this.selectedFiles = [];
+        this.filesToShow = this.$store.getters.GET_FILES_TO_SHOW;
         return;
       }
 
-      this.addBreadcrumb(fileName);
-      this.selectedFiles = [];
-      this.filesToShow = this.$store.getters.GET_FILES_TO_SHOW;
+      this.$store.dispatch('GET_FILE', filePath).then(() => {
+        const images = ['BMP', 'ICO', 'JPEG', 'JPG', 'PNG', 'WEBP'];
+        const files = ['C', 'CFG', 'CS', 'CSS', 'HTML', 'INI', 'LOG', 'PHP', 'SQL', 'TXT', 'JS', 'VUE', 'JSON',
+          'KT', 'JAVA', 'XML'];
+
+        let fileExt = filePath.split('.');
+        fileExt = fileExt[fileExt.length - 1].toUpperCase();
+
+        if (images.includes(fileExt)) {
+          this.isImage = true;
+          let fileContent = this.$store.getters.GET_FILE;
+          fileContent = `data:image/${fileType.toLowerCase()};base64,` + fileContent;
+          this.$store.commit('SET_FILE', fileContent);
+        } else if (files.includes(fileExt)) {
+          this.isImage = false;
+          this.fileName = fileName;
+        } else {
+          this.$notify({group: 'notify', text: 'Файлы с таким расширением не поддерживаются'});
+          return;
+        }
+        this.showFile = true;
+      })
     },
 
     replacingModalHandler(filePath, choice) {
@@ -401,11 +453,48 @@ export default {
         this.$store.commit('SET_FILES_TO_DELETE', []);
       }
     },
+
+    getPreviewImage() {
+      if (this.selectedFiles.length === 1) {
+        let file = this.filesToShow.filter(f => f.path === this.selectedFiles[0])
+
+        if (file.length === 0) return;
+        else file = file[0];
+
+        switch (file.type) {
+          case 'directory': {
+            return '/fileTypeIcons/directory.png';
+          }
+          case 'unknown': {
+            return '/fileTypeIcons/unknown.png';
+          }
+          default: {
+            return `/fileTypeIcons/${file.type}.png`
+          }
+        }
+      } else {
+        return '/fileTypeIcons/many.png'
+      }
+    },
+
+    previewClick() {
+      if (this.previewCanZoomIn === false) return;
+
+      let file = this.filesToShow.filter(f => f.path === this.selectedFiles[0]).pop();
+      this.openItem(file.name, file.type, file.path);
+    }
   },
 
   watch: {
     filesToShow() {
       this.$store.commit("SHOW_LOADING", false);
+    },
+    '$store.state.breadcrumbs'() {
+      this.showFile = false;
+      this.showDeleteModal = false;
+      this.showReplaceModal = false;
+      this.showCreateModal = false;
+      this.showRenameModal = false;
     }
   },
 
@@ -430,18 +519,17 @@ export default {
   flex-direction: row;
   background: #E0EEF5;
   width: 100%;
-  height: 100%;
+  height: calc(100% - 1vh - 45px);
+  overflow: hidden;
 }
 
 .fm-files__preview {
   background: #B3D5E7;
-  width: 35%;
+  width: 25%;
   height: 100%;
 }
 
 .fm-files__buttons {
-  background: #86BBD8;
-
   display: flex;
   flex-direction: row;
   align-items: center;
@@ -450,7 +538,7 @@ export default {
 
   padding: 5px 15px;
   border-bottom: 1px solid #2c3e50;
-
+  background: #86BBD8;
   user-select: none;
 }
 
@@ -465,7 +553,7 @@ export default {
 
 .fm-files__scroll {
   overflow: auto;
-  width: 65%;
+  width: 75%;
 }
 
 .fm-files__main {
@@ -565,4 +653,44 @@ export default {
   color: #33658A;
 }
 
+.fm-files__preview-content img {
+  margin-top: 15px;
+}
+
+.zoom-in {
+  cursor: zoom-in;
+}
+
+.fm-files__file {
+  position: absolute;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5);
+}
+
+.fm-files__file-container {
+  width: 60%;
+  height: 80%;
+
+  padding: 15px;
+
+  background: #E0EEF5;
+  font-size: 16px;
+  text-align: start;
+  overflow: auto;
+  white-space: pre-wrap;
+}
+
+.fm-files__file-container h1 {
+  margin: 15px 20px 30px;
+  padding: 0 0 5px;
+  border-bottom: 1px solid #2c3e50;
+}
+
+.fm-files__file-content {
+  margin-left: 20px;
+}
 </style>

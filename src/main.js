@@ -20,6 +20,7 @@ const store = new Vuex.Store({
     selectedFiles: [],
     actionType: [],
     showLoading: false,
+    file: null,
   },
   mutations: mutations,
   getters: getters,

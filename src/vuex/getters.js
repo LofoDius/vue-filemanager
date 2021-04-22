@@ -5,4 +5,5 @@ export default {
     GET_SELECTED_FILES: (state) => state.selectedFiles,
     GET_FILES_TO_PASTE: (state) => state.filesToPaste,
     GET_FILES_TO_DELETE: (state) => state.filesToDelete,
+    GET_FILE: (state) => state.file,
 }

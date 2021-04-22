@@ -25,5 +25,9 @@ export default {
 
     DELETE: (filesToDelete) => {
         return client.post('delete', {filesToDelete}).then((res) => Promise.resolve(res.data));
+    },
+
+    GET_FILE: (filePath) => {
+        return client.post('getFile', {filePath}).then((res) => Promise.resolve(res.data));
     }
 }

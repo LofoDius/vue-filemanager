@@ -46,4 +46,13 @@ export default {
           console.log(e);
       }
     },
+
+    GET_FILE: async (context, filePath) => {
+        try {
+            let file = await api.GET_FILE(filePath);
+            context.commit('SET_FILE', file);
+        } catch (e) {
+            console.log(e);
+        }
+    }
 }
